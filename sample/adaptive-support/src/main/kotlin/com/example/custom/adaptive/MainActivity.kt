@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.os.StrictMode
 import android.view.View
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -27,5 +28,8 @@ class MainActivity : AppCompatActivity() {
 
         val iconView = findViewById<LauncherIconView>(R.id.launcher_icon)
         iconView.setIcon(iconName)
+
+        val iconView2 = findViewById<ImageView>(R.id.launcher_icon_2)
+        iconView2.setImageResource(iconName)
     }
 }
