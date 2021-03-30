@@ -1,11 +1,11 @@
 package com.project.starter.easylauncher.plugin
 
 import com.project.starter.easylauncher.filter.EasyLauncherFilter
-import com.project.starter.easylauncher.plugin.models.Size
 import com.project.starter.easylauncher.plugin.models.toSize
 import groovy.util.XmlSlurper
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.Locale
 import javax.imageio.ImageIO
 import kotlin.math.roundToInt
 
@@ -24,7 +24,7 @@ internal fun File.transformXml(outputFile: File, minSdkVersion: Int, filters: Li
     val drawableRoot = outputFile.parentFile // eg. debug/drawable/
 
     val layers = filters.mapIndexed { index, filter ->
-        val filterId = "${filter::class.java.simpleName.toLowerCase()}_$index"
+        val filterId = "${filter::class.java.simpleName.toLowerCase(Locale.ROOT)}_$index"
         val resourceName = "${filterId}_${outputFile.nameWithoutExtension}"
 
         densities.forEach { (qualifier, multiplier) ->
@@ -44,12 +44,7 @@ internal fun File.transformXml(outputFile: File, minSdkVersion: Int, filters: Li
     }
         .joinToString(separator = "\n") {
             """
-            |    <item
-            |        android:width="${width.androidSize}"
-            |        android:height="${height.androidSize}"
-            |        android:drawable="@${outputFile.parentFile.normalizedName}/$it"
-            |        android:gravity="center"
-            |        />
+            |    <item android:drawable="@${outputFile.parentFile.normalizedName}/$it" />
             |""".trimMargin()
         }
     val versionSuffix = if (minSdkVersion >= ANDROID_OREO) "" else "-v26"
@@ -79,12 +74,6 @@ private val File.normalizedName
         name.contains("dpi") -> "drawable"
         else -> name
     }
-
-private val Size.androidSize: String
-    get() = "${(value * ADAPTIVE_SCALE).roundToInt()}$unit"
-
-internal const val ADAPTIVE_SCALE = 72 / 108f
-internal const val ADAPTIVE_CONTENT_SCALE = 56 / 108f
 
 internal const val ANDROID_OREO = 26
 

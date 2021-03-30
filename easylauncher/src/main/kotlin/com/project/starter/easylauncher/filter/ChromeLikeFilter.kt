@@ -1,10 +1,10 @@
 package com.project.starter.easylauncher.filter
 
-import com.project.starter.easylauncher.plugin.ADAPTIVE_CONTENT_SCALE
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.font.FontRenderContext
 import java.awt.image.BufferedImage
@@ -16,11 +16,12 @@ class ChromeLikeFilter(
     ribbonColor: Color? = null,
     labelColor: Color? = null,
     private val labelPadding: Int? = null,
-    overlayHeight: Float? = null,
+    overlayRatio: Float? = null,
     gravity: Gravity?,
     private val textSizeRatio: Float? = null,
     fontName: String? = null,
     fontResource: File? = null,
+    adaptivePadding: Boolean? = null,
 ) : EasyLauncherFilter {
 
     enum class Gravity {
@@ -32,35 +33,42 @@ class ChromeLikeFilter(
     private val font = fontResource?.takeIf { it.exists() }
         ?.let { Font.createFont(Font.TRUETYPE_FONT, it) }
         ?: Font(fontName, Font.PLAIN, 1)
-    private val overlayHeight = overlayHeight ?: OVERLAY_HEIGHT
+    private val overlayRatio = overlayRatio ?: OVERLAY_RATIO
     private val gravity = gravity ?: Gravity.BOTTOM
+    private val adaptivePadding = adaptivePadding ?: true
 
     override fun apply(image: BufferedImage, adaptive: Boolean) {
         val graphics = image.graphics as Graphics2D
 
-        val frc = FontRenderContext(graphics.transform, true, true)
+        val viewportWidth = image.getViewportWidth(adaptive)
+        val viewportHeight = image.getViewportHeight(adaptive)
+        val verticalPadding = ((image.height - viewportHeight) / 2f).roundToInt()
+
         // calculate the rectangle where the label is rendered
-        val backgroundHeight = (image.height * overlayHeight).roundToInt()
+        val overlayHeight = (viewportHeight * overlayRatio).roundToInt()
+        val backgroundHeight = overlayHeight + verticalPadding
+        val background = when (gravity) {
+            Gravity.TOP -> Rectangle(0, 0, image.width, backgroundHeight)
+            Gravity.BOTTOM -> Rectangle(0, image.height - backgroundHeight, image.width, backgroundHeight)
+        }
+
+        // Calculate label size
+        val frc = FontRenderContext(graphics.transform, true, true)
+        val extraPadding = if (adaptivePadding && adaptive) viewportHeight / 10f else 0f
         graphics.font = getFont(
-            imageHeight = image.height,
-            maxLabelWidth = (image.width * ADAPTIVE_CONTENT_SCALE).roundToInt(),
-            maxLabelHeight = (backgroundHeight * ADAPTIVE_CONTENT_SCALE).roundToInt(),
+            imageHeight = viewportHeight,
+            maxLabelWidth = (viewportWidth - extraPadding).roundToInt(),
+            maxLabelHeight = (overlayHeight - extraPadding).roundToInt(),
             frc = frc
         )
         val textBounds = graphics.font.getStringBounds(label, frc)
-
-        // update y gravity after calculating font size
-        val yGravity = image.height - backgroundHeight
 
         // draw the ribbon
         graphics.color = ribbonColor
         if (!adaptive) {
             graphics.composite = AlphaComposite.getInstance(AlphaComposite.SRC_ATOP, 1f)
         }
-        when (gravity) {
-            Gravity.TOP -> graphics.fillRect(0, 0, image.width, backgroundHeight)
-            Gravity.BOTTOM -> graphics.fillRect(0, yGravity, image.width, backgroundHeight)
-        }
+        graphics.fillRect(background.x, background.y, background.width, background.height)
 
         // draw the label
         graphics.setPaintMode()
@@ -71,14 +79,14 @@ class ChromeLikeFilter(
             Gravity.TOP ->
                 graphics.drawString(
                     label,
-                    image.width / 2 - textBounds.width.toInt() / 2,
-                    backgroundHeight - fm.descent - (labelPadding ?: 0)
+                    (background.centerX - textBounds.centerX).toFloat(),
+                    background.maxY.toFloat() - fm.descent - (labelPadding ?: 0)
                 )
             Gravity.BOTTOM ->
                 graphics.drawString(
                     label,
-                    image.width / 2 - textBounds.width.toInt() / 2,
-                    yGravity + fm.ascent + (labelPadding ?: 0)
+                    (background.centerX - textBounds.centerX).toFloat(),
+                    background.y.toFloat() + fm.ascent + (labelPadding ?: 0)
                 )
         }
         graphics.dispose()
@@ -98,6 +106,6 @@ class ChromeLikeFilter(
     }
 
     companion object {
-        private const val OVERLAY_HEIGHT = 0.4f
+        private const val OVERLAY_RATIO = 0.4f
     }
 }

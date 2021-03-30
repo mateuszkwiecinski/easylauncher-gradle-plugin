@@ -4,6 +4,7 @@ import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.font.FontRenderContext
 import java.awt.geom.AffineTransform
@@ -22,6 +23,7 @@ class ColorRibbonFilter(
     fontName: String? = null,
     fontResource: File? = null,
     private val drawingOptions: Set<DrawingOption> = emptySet(),
+    adaptivePadding: Boolean? = null,
 ) : EasyLauncherFilter {
 
     enum class Gravity {
@@ -39,83 +41,80 @@ class ColorRibbonFilter(
     private val font = fontResource?.takeIf { it.exists() }
         ?.let { Font.createFont(Font.TRUETYPE_FONT, it) }
         ?: Font(fontName, Font.PLAIN, 1)
+    private val adaptivePadding = adaptivePadding ?: true
+    private val addExtraPadding
+        get() = drawingOptions.contains(DrawingOption.ADD_EXTRA_PADDING)
 
     @Suppress("ComplexMethod")
     override fun apply(image: BufferedImage, adaptive: Boolean) {
-        val applyLargePadding = adaptive || drawingOptions.contains(DrawingOption.ADD_EXTRA_PADDING)
         val graphics = image.graphics as Graphics2D
+
+        val viewportWidth = image.getViewportWidth(adaptive)
+        val viewportHeight = image.getViewportHeight(adaptive)
+        val extraPadding = if ((adaptivePadding && adaptive) || addExtraPadding) viewportHeight / 10f else 0f
+        val verticalPadding = ((image.height - viewportHeight) / 2f + extraPadding).roundToInt()
+
         when (gravity) {
             Gravity.TOP, Gravity.BOTTOM -> Unit
             Gravity.TOPRIGHT -> graphics.transform = AffineTransform.getRotateInstance(
                 Math.toRadians(45.0),
-                image.width.toDouble(),
-                0.0
+                image.width / 2.0,
+                image.height / 2.0
             )
-            Gravity.TOPLEFT -> graphics.transform = AffineTransform.getRotateInstance(Math.toRadians(-45.0))
+            Gravity.TOPLEFT -> graphics.transform = AffineTransform.getRotateInstance(
+                Math.toRadians(-45.0),
+                image.width / 2.0,
+                image.height / 2.0
+            )
         }
-        val frc = FontRenderContext(graphics.transform, true, true)
-        // calculate the rectangle where the label is rendered
-        val maxLabelWidth = calculateMaxLabelWidth(image.height / 2)
-        graphics.font = getFont(image.height, maxLabelWidth, frc)
-        val textBounds = graphics.font.getStringBounds(label, frc)
-        val textHeight = textBounds.height.toInt()
-        val textPadding = textHeight / 10
-        val labelHeight = textHeight + textPadding * 2
 
-        // update y gravity after calculating font size
-        val yGravity = when (gravity) {
-            Gravity.TOP -> if (applyLargePadding) image.height / 4 else 0
-            Gravity.BOTTOM -> image.height - labelHeight - (if (applyLargePadding) image.height / 4 else 0)
-            Gravity.TOPRIGHT, Gravity.TOPLEFT -> image.height / (if (applyLargePadding) 2 else 4)
+        // calculate label size
+        val frc = FontRenderContext(graphics.transform, true, true)
+        val maxLabelWidth = calculateMaxLabelWidth(viewportWidth)
+        val maxLabelHeight = (viewportHeight / 6f).roundToInt()
+        graphics.font = getFont(viewportHeight, maxLabelWidth, maxLabelHeight, frc)
+
+        val textBounds = graphics.font.getStringBounds(label, frc)
+        val textHeight = textBounds.height.toFloat()
+        val textPadding = textHeight / 10f
+        val labelHeight = (textHeight + textPadding * 2f).roundToInt()
+
+        // calculate the drawing rectangle
+        val background = when (gravity) {
+            Gravity.TOP,
+            Gravity.TOPLEFT,
+            Gravity.TOPRIGHT ->
+                Rectangle(0, verticalPadding, image.width, labelHeight)
+
+            Gravity.BOTTOM ->
+                Rectangle(0, image.height - labelHeight - verticalPadding, image.width, labelHeight)
         }
 
         // draw the ribbon
-        graphics.color = ribbonColor
         if (drawingOptions.contains(DrawingOption.IGNORE_TRANSPARENT_PIXELS) && !adaptive) {
             graphics.composite = AlphaComposite.getInstance(AlphaComposite.SRC_IN, 1f)
         }
+        graphics.color = ribbonColor
+        graphics.fillRect(background.x, background.y, background.width, background.height)
 
-        if (gravity == Gravity.TOP || gravity == Gravity.BOTTOM) {
-            graphics.fillRect(0, yGravity, image.width, labelHeight)
-        } else if (gravity == Gravity.TOPRIGHT) {
-            graphics.fillRect(0, yGravity, image.width * 2, labelHeight)
-        } else {
-            graphics.fillRect(-image.width, yGravity, image.width * 2, labelHeight)
-        }
         // draw the label
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         graphics.color = labelColor
-        val fm = graphics.fontMetrics
-        if (gravity == Gravity.TOP || gravity == Gravity.BOTTOM) {
-            graphics.drawString(
-                label,
-                image.width / 2 - textBounds.width.toInt() / 2,
-                yGravity + fm.ascent
-            )
-        } else if (gravity == Gravity.TOPRIGHT) {
-            graphics.drawString(
-                label,
-                image.width - textBounds.width.toInt() / 2,
-                yGravity + fm.ascent
-            )
-        } else {
-            graphics.drawString(
-                label,
-                (-textBounds.width).toInt() / 2,
-                yGravity + fm.ascent
-            )
-        }
+        graphics.drawString(
+            label,
+            (background.centerX - textBounds.centerX).toFloat(),
+            (background.centerY - textBounds.centerY).toFloat(),
+        )
         graphics.dispose()
     }
 
-    private fun getFont(imageHeight: Int, maxLabelWidth: Int, frc: FontRenderContext): Font {
+    private fun getFont(imageHeight: Int, maxLabelWidth: Int, maxLabelHeight: Int, frc: FontRenderContext): Font {
         // User-defined text size
         if (textSizeRatio != null) {
             return font.deriveFont((imageHeight * textSizeRatio).roundToInt().toFloat())
         }
-        val max = imageHeight / 8 - 1
 
-        return (max downTo 0).asSequence()
+        return (maxLabelHeight downTo 0).asSequence()
             .map { size -> font.deriveFont(size.toFloat()) }
             .first { font ->
                 val bounds = font.getStringBounds(label, frc)
