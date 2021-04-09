@@ -82,6 +82,7 @@ open class EasyLauncherConfig @Inject constructor(
             ?.let(ColorRibbonFilter.Gravity::valueOf)
         val textSizeRatio = properties["textSizeRatio"]?.toString()?.toFloatOrNull()
         val drawingOptions = (properties["drawingOptions"] as? Iterable<*>).toDrawingOptions()
+        val adaptivePadding = properties["adaptivePadding"]?.toString()?.toBoolean()
 
         val fontName: String?
         val font: File?
@@ -109,6 +110,7 @@ open class EasyLauncherConfig @Inject constructor(
             fontName = fontName,
             font = font,
             drawingOptions = drawingOptions,
+            adaptivePadding = adaptivePadding,
         )
     }
 
@@ -121,6 +123,7 @@ open class EasyLauncherConfig @Inject constructor(
         fontName: String? = null,
         font: File? = null,
         drawingOptions: Set<ColorRibbonFilter.DrawingOption> = emptySet(),
+        adaptivePadding: Boolean? = null,
     ) = ColorRibbonFilter(
         label = label ?: name,
         ribbonColor = ribbonColor?.toColor(),
@@ -130,34 +133,43 @@ open class EasyLauncherConfig @Inject constructor(
         fontName = fontName,
         fontResource = font,
         drawingOptions = drawingOptions,
+        adaptivePadding = adaptivePadding,
     )
 
     @JvmOverloads
-    fun grayRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0x60, 0x60, 0x60, 0x99))
+    fun grayRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0x60, 0x60, 0x60, 0x99), adaptivePadding = adaptivePadding)
 
     @JvmOverloads
-    fun greenRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0, 0x72, 0, 0x99))
+    fun greenRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0, 0x72, 0, 0x99), adaptivePadding = adaptivePadding)
 
     @JvmOverloads
-    fun orangeRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0xff, 0x76, 0, 0x99))
+    fun orangeRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0xff, 0x76, 0, 0x99), adaptivePadding = adaptivePadding)
 
     @JvmOverloads
-    fun yellowRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0xff, 251, 0, 0x99))
+    fun yellowRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0xff, 251, 0, 0x99), adaptivePadding = adaptivePadding)
 
     @JvmOverloads
-    fun redRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0xff, 0, 0, 0x99))
+    fun redRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0xff, 0, 0, 0x99), adaptivePadding = adaptivePadding)
 
     @JvmOverloads
-    fun blueRibbonFilter(label: String? = null) =
-        ColorRibbonFilter(label ?: this.name, Color(0, 0, 255, 0x99))
+    fun blueRibbonFilter(label: String? = null, adaptivePadding: Boolean? = null) =
+        ColorRibbonFilter(label ?: this.name, Color(0, 0, 255, 0x99), adaptivePadding = adaptivePadding)
 
-    fun overlayFilter(fgFile: File) =
-        OverlayFilter(fgFile)
+    @JvmOverloads
+    fun overlayFilter(fgFile: File, adaptivePadding: Boolean? = null) =
+        OverlayFilter(fgFile, adaptivePadding = adaptivePadding)
+
+    fun overlayFilter(properties: Map<String, Any>): OverlayFilter {
+        val fgFile = properties["file"] as File
+        val adaptivePadding = properties["adaptivePadding"]?.toString()?.toBoolean()
+
+        return overlayFilter(fgFile, adaptivePadding)
+    }
 
     @JvmOverloads
     fun chromeLike(
@@ -170,6 +182,7 @@ open class EasyLauncherConfig @Inject constructor(
         overlayHeight: Float? = null,
         textSizeRatio: Float? = null,
         gravity: ChromeLikeFilter.Gravity? = null,
+        adaptivePadding: Boolean? = null,
     ) = ChromeLikeFilter(
         label ?: this.name,
         ribbonColor = ribbonColor?.toColor(),
@@ -178,8 +191,9 @@ open class EasyLauncherConfig @Inject constructor(
         gravity = gravity,
         fontName = fontName,
         fontResource = font,
-        overlayHeight = overlayHeight,
+        overlayRatio = overlayHeight,
         textSizeRatio = textSizeRatio,
+        adaptivePadding = adaptivePadding,
     )
 
     fun chromeLike(properties: Map<String, Any>): ChromeLikeFilter {
@@ -190,6 +204,7 @@ open class EasyLauncherConfig @Inject constructor(
         val labelPadding = properties["labelPadding"]?.toString()?.toDoubleOrNull()?.roundToInt()
         val overlayHeight = properties["overlayHeight"]?.toString()?.toFloatOrNull()
         val textSizeRatio = properties["textSizeRatio"]?.toString()?.toFloatOrNull()
+        val adaptivePadding = properties["adaptivePadding"]?.toString()?.toBoolean()
 
         val fontName: String?
         val font: File?
@@ -218,6 +233,7 @@ open class EasyLauncherConfig @Inject constructor(
             font = font,
             overlayHeight = overlayHeight,
             textSizeRatio = textSizeRatio,
+            adaptivePadding = adaptivePadding,
         )
     }
 

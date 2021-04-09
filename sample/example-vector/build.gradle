@@ -80,8 +80,13 @@ easylauncher {
             filters customRibbon(ribbonColor: "#99000000", labelColor: "#88FF0000", textSizeRatio: 0.3f)
         }
         customFont {
-            filters customRibbon(label: "regular", font: "ComicSansMS", position: "top"),
-                    chromeLike(label: "bold", font: "ComicSansMS-Bold")
+            filters chromeLike(label: "bold", font: "ComicSansMS-Bold"),
+                    chromeLike(label: "TOP", gravity: "TOP"),
+                    customRibbon(label: "bottom", font: "ComicSansMS", position: "bottom"),
+                    customRibbon(label: "topLeft", font: "ComicSansMS", position: "topLeft"),
+                    customRibbon(label: "topRight", font: "ComicSansMS", position: "topRight"),
+                    customRibbon(label: "regular", font: "ComicSansMS", position: "top"),
+                    overlayFilter(new File("example-custom/launcherOverlay/beta.png"))
         }
         customFontByFile {
             filters customRibbon(label: "\ue868\ue3B7", font: file("fonts/MaterialIcons-Regular.ttf"), position: "top"),
